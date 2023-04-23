@@ -1,0 +1,10 @@
+pyspark==2.4.8
+findspark
+ijson
+tqdm
+jupyter
+spacy
+unidecode
+word2number
+contractions
+matplotlib
