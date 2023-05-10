@@ -51,7 +51,7 @@ import numpy as np
 
 
 
-
+# we got help from chatgpt3 for some tasks
 # #task 1
 # You can drop publications with very short titles, e.g., one word, with empty authors
 
