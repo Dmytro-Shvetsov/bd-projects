@@ -1,0 +1,46 @@
+# Load your data and specify schema
+file_location = "/FileStore/tables/chunk_0.json"
+file_type = "json"
+schema = StructType([
+    StructField("id", StringType(), True),
+    # Add other fields
+])
+initial_data = spark.read.json(file_location, schema=schema)
+initial_data.cache()
+initial_data = initial_data.repartition(100)
+
+# Write the initial data into the data warehouse
+initial_data.write.format("delta").mode("overwrite").save("/FileStore/tables/delta/")
+
+streaming_source = (
+    spark.readStream
+    .schema(schema)
+    .json("dbfs:/FileStore/tables/")
+)
+
+# Define the SCD policy to handle changes in dimensional tables
+def apply_scd_type_2(new_data, path, merge_columns, merge_columns_data_types):
+    from pyspark.sql.functions import current_timestamp, lit, col
+    existing_delta_table = DeltaTable.forPath(spark, path)
+    merge_conditions = " AND ".join(
+        [f"existing_data.{col_name} = new_data.{col_name}" for col_name in merge_columns]
+    )
+
+    # Pass merge_conditions directly to the merge() function
+    (
+        existing_delta_table.alias("existing_data")
+        .merge(new_data.alias("new_data"), merge_conditions)
+        .whenMatchedUpdateAll()   # Update existing records
+        .whenNotMatchedInsertAll()  # Insert new records
+        .execute()
+    )
+path = "/FileStore/tables/delta/"
+# Write changes to the Delta table
+(
+    streaming_source.writeStream
+    .foreachBatch(lambda new_data, batch_id: apply_scd_type_2(new_data, path,
+                                                               merge_columns=["id"],
+                                                               merge_columns_data_types=[StructField("id", StringType(), True)]))
+    .start()
+    .awaitTermination()
+)

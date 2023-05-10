@@ -1,0 +1,69 @@
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import explode, row_number
+from pyspark.sql.window import Window
+
+
+# File location and type
+file_location = "/FileStore/tables/chunk_0.json"
+file_type = "json"
+
+# CSV options
+infer_schema = "false"
+first_row_is_header = "false"
+delimiter = ","
+
+# 1 The applied options are for CSV files. For other file types, these will be ignored.
+df = spark.read.format(file_type) \
+  .option("inferSchema", infer_schema) \
+  .option("header", first_row_is_header) \
+  .option("sep", delimiter) \
+  .load(file_location)
+
+
+project_data = (spark.read
+             .option("inferSchema", True)
+             .json(file_location)
+            )
+
+# 2. Transform
+# Add author rank column
+project_data = project_data.select("*", row_number().over(Window.partitionBy("_id").orderBy("_id")).alias("author_rank"))
+
+# Flatten nested fields
+project_data = project_data.select(
+    "_id",
+    "abstract",
+    "author_rank",
+    "authors",
+    "doi",
+    "fos",
+    "isbn",
+    "issn",
+    "issue",
+    "keywords",
+    "lang",
+    "n_citation",
+    "page_end",
+    "page_start",
+    "pdf",
+    "references",
+    "title",
+    "url",
+    "venue",
+    "volume",
+    "year",
+    explode("authors._id").alias("author_id"),
+)
+
+# Remove duplicates
+author_table = project_data.select("author_id", "author_rank").dropDuplicates()
+keywords_table = project_data.select(explode("keywords").alias("keyword")).dropDuplicates()
+fos_table = project_data.select(explode("fos").alias("field_of_study")).dropDuplicates()
+
+# 3. Load
+author_table.write.mode("overwrite").parquet("author_table.parquet")
+keywords_table.write.mode("overwrite").parquet("keywords_table.parquet")
+fos_table.write.mode("overwrite").parquet("fos_table.parquet")
+project_data.write.mode("overwrite").parquet("project_data.parquet")
+
+display(project_data)
