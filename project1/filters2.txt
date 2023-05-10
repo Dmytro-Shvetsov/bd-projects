@@ -1,11 +1,7 @@
-# Create a view or table
+# File location and type
+file_location = "/FileStore/tables/chunk_0.json"
+file_type = "json"
 
-# temp_table_name = "chunk_0_json"
-
-# df.createOrReplaceTempView(temp_table_name)
-
-
-#display data
 
 project_data = (spark.read
              .option("inferSchema", True)
@@ -13,36 +9,55 @@ project_data = (spark.read
             )
 
 display(project_data)
+# ---------------------------------------------------------------------------------------------------------------------
+# #task 1
+# # You can drop publications with very short titles, e.g., one word, with empty authors
+
+import pyspark.sql.functions as F
+unique_project_data = project_data.dropDuplicates()
+
+# Split the title by space and count the number of words
+num_words = F.size(F.split(F.col("title"), " "))
+
+# Filter dataset
+df = unique_project_data.filter((F.col("authors").isNotNull()) & (num_words > 1))
+
+# # Display result
+# display(test)
+# ---------------------------------------------------------------------------------------------------------------------
+
+
 
 # ---------------------------------------------------------------------------------------------------------------------
 #task2
 #Similarly, for the number of citations, you need to explore the data a bit and visualize the content of sample records.
-# pip install matplotlib
+
+%pip install matplotlib
 
 
-# # Display first few records
-# project_data.show(n=5)
+# Display first few records
+project_data.show(n=5)
 
-# # Get summary statistics
-# project_data.describe().show()
+# Get summary statistics
+project_data.describe().show()
 
-# # Print schema
-# project_data.printSchema()
+# Print schema
+project_data.printSchema()
 
-# # Get summary statistics for the citations column
-# project_data.select("n_citation").describe().show()
+# Get summary statistics for the citations column
+project_data.select("n_citation").describe().show()
 
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
-# # Convert the citations column to a list
-# citations_list = project_data.select("n_citation").rdd.flatMap(lambda x: x).collect()
+# Convert the citations column to a list
+citations_list = project_data.select("n_citation").rdd.flatMap(lambda x: x).collect()
 
-# # Create a histogram of the citations data
-# plt.hist(citations_list, bins='auto')
-# plt.xlabel('Number of Citations')
-# plt.ylabel('Frequency')
-# plt.title('Histogram of Citations')
-# plt.show()
+# Create a histogram of the citations data
+plt.hist(citations_list, bins='auto')
+plt.xlabel('Number of Citations')
+plt.ylabel('Frequency')
+plt.title('Histogram of Citations')
+plt.show()
 # ---------------------------------------------------------------------------------------------------------------------
 
 
@@ -58,81 +73,14 @@ display(project_data)
 # If volume and/or issue values are not empty, then this is a journal publication.
 
 
-# from pyspark.sql.functions import when
+from pyspark.sql.functions import when
 
-# new_project_data = project_data.withColumn("doc_type", 
-#                                         when((project_data["venue.raw"].contains("@")), "workshop")
-#                                         .when((project_data["volume"] != "") | (project_data["issue"] != ""), "journal")
-#                                         .otherwise("conference"))
-# display(new_project_data)
+df = df.withColumn("doc_type", 
+                                        when((df["venue.raw"].contains("@")), "workshop")
+                                        .when((df["volume"] != "") | (df["issue"] != ""), "journal")
+                                        .otherwise("conference"))
+# display(df)
 # ---------------------------------------------------------------------------------------------------------------------
-
-
-
-
-
-# ---------------------------------------------------------------------------------------------------------------------
-#Task6
-# Resolving ambiguous author names. You can use external systems like Google scholar, DBLP, MS Research
-# We have in this repo some Python scripts that we used in a slightly similar context to resolve authors and refine their publications, https://github.com/DataSystemsGroupUT/Minaret. You can also read the paper of Minaret to help you search through the repository: https://openproceedings.org/2019/conf/edbt/EDBT19_paper_210.pdf
-
-
-
-from pyspark.sql.functions import udf, when
-from pyspark.sql.types import StringType
-import re
-import requests
-import difflib
-import requests
-import xml.etree.ElementTree as ET
-from pyspark.sql.functions import col, exists, lit
-
-
-def search_dblp_api(title):
-    url = "https://dblp.org/search/publ/api"
-    params = {
-        "q": title,
-        "format": "xml",
-        "expand": "1"
-    }
-
-    response = requests.get(url, params=params)
-    
-    # Parse the XML response
-    root = ET.fromstring(response.content)
-    
-    # Get the author elements from the XML
-    author_elements = root.findall(".//author")
-    
-    # Extract the author names from the elements and add them to a list
-    authors = [author.text for author in author_elements]
-    
-    return authors
-
-
-
-
-
-from pyspark.sql.functions import col, udf
-from pyspark.sql.types import ArrayType, StringType
-
-# Define the UDF to call search_dblp_api function
-search_dblp_udf = udf(search_dblp_api, ArrayType(StringType()))
-
-# Filter where any author name is null
-project_data_filtered = project_data.filter(
-    exists(col("authors"), lambda x: x["name"].isNull())
-)
-
-# Add a new column with the author names obtained from search_dblp_api
-project_data_updated = project_data_filtered.withColumn(
-    "author_names",
-    search_dblp_udf(col("title"))
-)
-
-    
-display(project_data_updated)
-
 
 
 
@@ -179,8 +127,6 @@ def search_dblp_api(title):
 
 
 
-
-
 from pyspark.sql.functions import col, udf
 from pyspark.sql.types import ArrayType, StringType
 
@@ -188,16 +134,15 @@ from pyspark.sql.types import ArrayType, StringType
 search_dblp_udf = udf(search_dblp_api, ArrayType(StringType()))
 
 # Filter where any author name is null
-project_data_filtered = project_data.filter(
+project_data_filtered = df.filter(
     exists(col("authors"), lambda x: x["name"].isNull())
 )
 
 # Add a new column with the author names obtained from search_dblp_api
-project_data_updated = project_data_filtered.withColumn(
+df = project_data_filtered.withColumn(
     "author_names",
     search_dblp_udf(col("title"))
 )
 
     
-display(project_data_updated)
-
+display(df)

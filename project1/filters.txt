@@ -78,7 +78,7 @@ test1 = df.filter(length(translate(df.issn, '0123456789', '')) == 0) \
 # ---------------------------------------------------------------------------------------------------------------------
 
 
-#TASK 4 burada nullari sil demir eslinde kodu deyismek olar istesek
+#TASK 4
 test3 = test1.filter(F.col("volume").isNotNull()) \
             .filter((F.col("volume") !=("")))  \
             .filter(F.col("issue").isNotNull())  \
