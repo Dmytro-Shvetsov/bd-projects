@@ -1,3 +1,7 @@
+import findspark
+findspark.init()
+
+
 from pyspark.sql import SparkSession
 from pyspark.ml.feature import StringIndexer, OneHotEncoderEstimator, VectorAssembler
 from pyspark.ml.classification import LogisticRegression, DecisionTreeClassifier, RandomForestClassifier, GBTClassifier
