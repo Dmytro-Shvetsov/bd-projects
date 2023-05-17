@@ -1,0 +1,166 @@
+# File location and type
+file_location = "/FileStore/tables/chunk_0.json/chunk_0.json"
+
+project_data = (spark.read
+             .option("inferSchema", True)
+             .json(file_location)
+            )
+
+display(project_data.limit(20))
+
+df_explode = project_data.limit(20).selectExpr("*", "explode(authors) as author", "author._id as author_id","author.name as author_name","author.org as author_org")
+display(df_explode)
+
+
+# GraphFrames jar needs to be installed
+# https://spark-packages.org/package/graphframes/graphframes
+import graphframes as gf
+
+spark.conf.set("spark.sql.shuffle.partitions", sc.defaultParallelism)
+
+---------------------------
+import pyspark.sql.functions as F
+
+vertices_authors = (df_explode
+                  .select(F.col("author_id").alias("id"))
+                  .union(df_explode
+                        .select(F.col("author_name").alias("name")))
+                  .distinct()
+)
+
+
+vertices_publications = (df_explode
+                  .select(F.col("_id").alias("id"))
+                  .union(df_explode
+                        .select(F.col("title").alias("title")))
+                  .distinct()
+)
+
+
+
+vertices = vertices_authors.union(vertices_publications)
+# display(vertices)
+
+edges = (df_explode
+               .select(F.col("author_id").alias("src")
+                      ,F.col("_id").alias("dst")
+                      ,F.col("*"))
+               .drop("author_id", "_id")
+)
+
+
+graph = gf.GraphFrame(vertices,edges)
+
+# display(graph)
+
+# display(graph.vertices) 
+display(graph.edges) 
+
+------------------
+# testing purpose
+test = (graph
+           .find("(a)-[e1]->(b)")
+           .filter(("e1.lang == 'en' "))
+        )
+
+display(test)
+
+------------------
+# Find the top 5 authors with the most publications:
+top_authors = graph.outDegrees.orderBy("outDegree", ascending=False).limit(5)
+display(top_authors)
+
+# PageRank algorithm to find the most influential authors for this graph:
+result1 = graph.pageRank(resetProbability=0.15, maxIter=20)
+inf_authors = result1.vertices.orderBy("pagerank", ascending=False)
+display(inf_authors)
+-----------------
+
+vertices = (df_explode
+                  .select(F.col("author_id").alias("id"))
+                  .union(df_explode
+                        .select(F.col("author.org").alias("org_name")))
+                  .distinct()
+)
+
+# display(vertices)
+
+edges = (df_explode
+               .select(F.col("author_id").alias("src")
+                      ,F.col("author_org").alias("dst")
+                      ,F.col("*"))
+               .drop("author_id", "author_org")
+)
+
+# display(edges)
+
+graph = gf.GraphFrame(vertices,edges)
+
+# display(graph)
+
+# display(graph.vertices) 
+display(graph.edges) 
+
+ ----------------------------
+
+new_df = df_explode.withColumn("scientific_domain", F.when(F.size(F.col("fos")) > 0, F.col("fos")[0]).otherwise(None))
+edges = (new_df
+               .select(F.col("author_id").alias("src")
+                      ,F.col("scientific_domain").alias("dst")
+                      ,F.col("*"))
+               .drop("author_id", "scientific_domain")
+        )
+# display(new_df)
+
+
+vertices = (new_df
+                  .select(F.col("author_id").alias("id"))
+                  .union(new_df
+                        .select(F.col("scientific_domain").alias("scientific_domain")))
+                  .distinct()
+)
+
+# display(vertices)
+
+edges = (new_df
+               .select(F.col("author_id").alias("src")
+                      ,F.col("scientific_domain").alias("dst")
+                      ,F.col("*"))
+               .drop("author_id", "scientific_domain")
+)
+
+# display(edges)
+
+graph = gf.GraphFrame(vertices,edges)
+
+# display(graph)
+
+# display(graph.vertices) 
+display(graph.edges) 
+
+--------------------------
+
+vertices = (new_df
+                  .select(F.col("_id").alias("id"))
+                  .union(new_df
+                        .select(F.col("n_citation"))
+                  .distinct()
+             ))
+
+
+edges = (new_df
+               .select(F.col("_id").alias("src")
+                      ,F.col("n_citation").alias("dst")
+                      ,F.col("*"))
+               .drop("_id", "n_citation")
+)
+
+graph = gf.GraphFrame(vertices,edges)
+
+# display(graph.vertices) 
+display(graph.edges) 
+
+--------------------------
+result2 = graph.pageRank(resetProbability=0.15, maxIter=20)
+inf_papers = result2.vertices.orderBy("pagerank", ascending=False)s
+display(inf_papers)
