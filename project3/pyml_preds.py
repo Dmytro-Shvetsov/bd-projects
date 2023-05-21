@@ -99,9 +99,9 @@ train, test = stratified_df.randomSplit([0.7, 0.3])
 
 # Create a list of models to try
 models = [
-    #LogisticRegression(featuresCol="features", labelCol="CANCELLED"),
-    #DecisionTreeClassifier(featuresCol="features", labelCol="CANCELLED"),
-    #RandomForestClassifier(featuresCol="features", labelCol="CANCELLED"),
+    LogisticRegression(featuresCol="features", labelCol="CANCELLED"),
+    DecisionTreeClassifier(featuresCol="features", labelCol="CANCELLED"),
+    RandomForestClassifier(featuresCol="features", labelCol="CANCELLED"),
     GBTClassifier(featuresCol="features", labelCol="CANCELLED")
 ]
 
