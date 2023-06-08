@@ -43,21 +43,22 @@ df = df.na.drop(subset=selected_columns)
 
 # Cast 'CANCELLED' column as integer
 df = df.withColumn("CANCELLED", df["CANCELLED"].cast("integer"))
-#top10_airlines = df.groupBy("OP_CARRIER").count().orderBy("count", ascending=False).limit(10)
-#top10_airlines.show()
 
-#cancellation_reasons = df.groupBy("CANCELLATION_CODE").count()
-#cancellation_reasons.show()
-#cancellation_reasons_pd = cancellation_reasons.toPandas()
+#TOP 10 airlines 
+top10_airlines = df.groupBy("OP_CARRIER").count().orderBy("count", ascending=False).limit(10)
+top10_airlines.show()
+
+cancellation_reasons = df.groupBy("CANCELLATION_CODE").count()
+cancellation_reasons.show()
+cancellation_reasons_pd = cancellation_reasons.toPandas()
 
 # Set up the pie chart
-#plt.figure(figsize=(8, 8))
-#plt.pie(cancellation_reasons_pd['count'], labels=cancellation_reasons_pd['CANCELLATION_CODE'], autopct='%1.1f%%')
-#plt.title("Proportion of Total Flight Cancellation Reasons (2009-2015)")
-#plt.show()
+plt.figure(figsize=(8, 8))
+plt.pie(cancellation_reasons_pd['count'], labels=cancellation_reasons_pd['CANCELLATION_CODE'], autopct='%1.1f%%')
+plt.title("Proportion of Total Flight Cancellation Reasons (2009-2015)")
+plt.show()
 
 # Calculate the fractions of canceled and not-canceled flights to balance the dataset
-#df = df.withColumn("CANCELLED", df["CANCELLED"].cast("integer"))
 
 num_canceled = df.filter(df.CANCELLED == 1).count()
 num_not_canceled = df.filter(df.CANCELLED == 0).count()

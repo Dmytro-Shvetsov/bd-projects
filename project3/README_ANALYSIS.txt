@@ -1,3 +1,4 @@
+Carrier flights count: 
 +----------+------+
 |OP_CARRIER| count|
 +----------+------+
@@ -13,6 +14,9 @@
 |        B6| 25401|
 +----------+------+
 
+
+Cancelation reasons: 
+
 +-----------------+------+
 |CANCELLATION_CODE| count|
 +-----------------+------+
@@ -21,3 +25,11 @@
 |                C|129128|
 |                A|247074|
 +-----------------+------+
+
+
+Models performance: 
+
+LogisticRegression accuracy: 1.0
+DecisionTreeClassifier accuracy: 1.0
+RandomForestClassifier accuracy: 0.968073004094185
+GBTClassifier accuracy: 1.0
